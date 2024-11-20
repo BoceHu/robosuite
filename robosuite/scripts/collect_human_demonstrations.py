@@ -62,6 +62,7 @@ def collect_human_trajectory(env, device, arm, env_configuration):
         # Run environment step
         env.step(action)
         env.render()
+        # print(env.robots[0].recent_ee_pose.last[3:])
 
         # Also break if we complete the task
         if task_completion_hold_count == 0:
@@ -185,7 +186,7 @@ if __name__ == "__main__":
         "--config", type=str, default="single-arm-opposed", help="Specified environment configuration if necessary"
     )
     parser.add_argument("--arm", type=str, default="right", help="Which arm to control (eg bimanual) 'right' or 'left'")
-    parser.add_argument("--camera", type=str, default="agentview", help="Which camera to use for collecting demos")
+    parser.add_argument("--camera", type=str, default="robot0_eye_in_hand", help="Which camera to use for collecting demos")
     parser.add_argument(
         "--controller", type=str, default="OSC_POSE", help="Choice of controller. Can be 'IK_POSE' or 'OSC_POSE'"
     )
@@ -251,3 +252,269 @@ if __name__ == "__main__":
     while True:
         collect_human_trajectory(env, device, args.arm, args.config)
         gather_demonstrations_as_hdf5(tmp_directory, new_dir, env_info)
+
+
+# sim.model.camera_name2id(camera_name)
+# def quaternion_multiply_xyzw(q, r):
+#     x = q[3] * r[0] + q[0] * r[3] + q[1] * r[2] - q[2] * r[1]
+#     y = q[3] * r[1] - q[0] * r[2] + q[1] * r[3] + q[2] * r[0]
+#     z = q[3] * r[2] + q[0] * r[1] - q[1] * r[0] + q[2] * r[3]
+#     w = q[3] * r[3] - q[0] * r[0] - q[1] * r[1] - q[2] * r[2]
+#     return np.array([x, y, z, w])
+
+"""
+def make_pose(translation, rotation):
+
+    Makes a homogeneous pose matrix from a translation vector and a rotation matrix.
+    Args:
+        translation (np.array): (x,y,z) translation value
+        rotation (np.array): a 3x3 matrix representing rotation
+    Returns:
+        pose (np.array): a 4x4 homogeneous matrix
+
+    pose = np.zeros((4, 4))
+    pose[:3, :3] = rotation
+    pose[:3, 3] = translation
+    pose[3, 3] = 1.0
+    return pose
+PyDev console: using IPython 8.18.1
+def mat2quat(rmat):
+
+    Converts given rotation matrix to quaternion.
+    Args:
+        rmat (np.array): 3x3 rotation matrix
+    Returns:
+        np.array: (x,y,z,w) float quaternion angles
+
+    M = np.asarray(rmat).astype(np.float32)[:3, :3]
+    m00 = M[0, 0]
+    m01 = M[0, 1]
+    m02 = M[0, 2]
+    m10 = M[1, 0]
+    m11 = M[1, 1]
+    m12 = M[1, 2]
+    m20 = M[2, 0]
+    m21 = M[2, 1]
+    m22 = M[2, 2]
+    # symmetric matrix K
+    K = np.array(
+        [
+            [m00 - m11 - m22, np.float32(0.0), np.float32(0.0), np.float32(0.0)],
+            [m01 + m10, m11 - m00 - m22, np.float32(0.0), np.float32(0.0)],
+            [m02 + m20, m12 + m21, m22 - m00 - m11, np.float32(0.0)],
+            [m21 - m12, m02 - m20, m10 - m01, m00 + m11 + m22],
+        ]
+    )
+    K /= 3.0
+    # quaternion is Eigen vector of K that corresponds to largest eigenvalue
+    w, V = np.linalg.eigh(K)
+    inds = np.array([3, 0, 1, 2])
+    q1 = V[inds, np.argmax(w)]
+    if q1[0] < 0.0:
+        np.negative(q1, q1)
+    inds = np.array([1, 2, 3, 0])
+    return q1[inds]
+r = env.env.viewer.sim.data.cam_xmat[5].reshape(3,3)
+t = env.env.viewer.sim.data.cam_xpos[5]
+camera_axis_correction = np.array(
+        [[1.0, 0.0, 0.0, 0.0], [0.0, -1.0, 0.0, 0.0], [0.0, 0.0, -1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
+    )
+R = pose @ camera_axis_correction
+Traceback (most recent call last):
+  File "/home/bocehu/mambaforge/envs/equidiffpo/lib/python3.9/site-packages/IPython/core/interactiveshell.py", line 3550, in run_code
+    exec(code_obj, self.user_global_ns, self.user_ns)
+  File "<ipython-input-5-8ef7e3bef29a>", line 4, in <module>
+    R = pose @ camera_axis_correction
+NameError: name 'pose' is not defined
+pose = make_pose(t,r)
+camera_axis_correction = np.array(
+        [[1.0, 0.0, 0.0, 0.0], [0.0, -1.0, 0.0, 0.0], [0.0, 0.0, -1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
+    )
+R = pose @ camera_axis_correction
+R 
+Out[8]: 
+array([[ 4.96537180e-05, -9.91483967e-01,  1.30228805e-01,
+        -8.69140046e-02],
+       [-9.99999950e-01, -8.99621509e-05, -3.03637239e-04,
+        -9.62390857e-03],
+       [ 3.12767117e-04, -1.30228783e-01, -9.91483921e-01,
+         1.11610486e+00],
+       [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,
+         1.00000000e+00]])
+Q = mat2quat(R)
+env.robots[0].recent_ee_pose.last[3:]
+Out[10]: array([0.70561224, 0.70558077, 0.04606798, 0.0463133 ])
+Q 
+Out[11]: array([-0.70562446,  0.705575  , -0.04625037,  0.04603197], dtype=float32)
+r = env.env.viewer.sim.data.cam_xmat[5].reshape(3,3)
+q  = mat2quat(r)
+q 
+Out[14]: array([ 0.04603197, -0.04625037, -0.705575  ,  0.70562446], dtype=float32)
+Demonstration is unsuccessful and has NOT been saved
+DataCollectionWrapper: making folder at /tmp/1730063585_7150733/ep_1730064289_4663804
+r = env.env.viewer.sim.data.cam_xmat[5].reshape(3,3)
+t = env.env.viewer.sim.data.cam_xpos[5]
+pose = make_pose(t,r)
+camera_axis_correction = np.array(
+        [[1.0, 0.0, 0.0, 0.0], [0.0, -1.0, 0.0, 0.0], [0.0, 0.0, -1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
+    )
+R = pose @ camera_axis_correction
+Q = mat2quat(R)
+Q 
+Out[21]: array([-0.5985041 ,  0.7385595 , -0.30813602,  0.03707973], dtype=float32)
+env.robots[0].recent_ee_pose.last[3:]
+Out[22]: array([0.73844796, 0.59854084, 0.03736645, 0.30829725])
+def quaternion_multiply_xyzw(q, r):
+    x = q[3] * r[0] + q[0] * r[3] + q[1] * r[2] - q[2] * r[1]
+    y = q[3] * r[1] - q[0] * r[2] + q[1] * r[3] + q[2] * r[0]
+    z = q[3] * r[2] + q[0] * r[1] - q[1] * r[0] + q[2] * r[3]
+    w = q[3] * r[3] - q[0] * r[0] - q[1] * r[1] - q[2] * r[2]
+    return np.array([x, y, z, w])
+q_unknown = quaternion_multiply_xyzw(np.array([0, 0, 1, 0]), Q)
+q_unknow
+Traceback (most recent call last):
+  File "/home/bocehu/mambaforge/envs/equidiffpo/lib/python3.9/site-packages/IPython/core/interactiveshell.py", line 3550, in run_code
+    exec(code_obj, self.user_global_ns, self.user_ns)
+  File "<ipython-input-25-99f4d2e38c6c>", line 1, in <module>
+    q_unknow
+NameError: name 'q_unknow' is not defined
+q_unknown
+Out[26]: array([-0.73855948, -0.59850413,  0.03707973,  0.30813602])
+env.robots[0].recent_ee_pose.last[3:]
+Out[27]: array([0.73844796, 0.59854084, 0.03736645, 0.30829725])
+Q 
+Out[28]: array([-0.5985041 ,  0.7385595 , -0.30813602,  0.03707973], dtype=float32)
+q_unknown = quaternion_multiply_xyzw(np.array([0, 0, 1, 0]), env.robots[0].recent_ee_pose.last[3:])
+q_unknown
+Out[30]: array([-0.59854084,  0.73844796,  0.30829725, -0.03736645])
+q_unknown = quaternion_multiply_xyzw(np.array([0,0,0.7071,0.7071]), env.robots[0].recent_ee_pose.last[3:])
+q_unknown
+Out[32]: array([0.09892833, 0.94538479, 0.2444188 , 0.19157517])
+q_unknown = quaternion_multiply_xyzw(np.array([0, 0, -1, 0]), env.robots[0].recent_ee_pose.last[3:])
+q_unknown
+Out[34]: array([ 0.59854084, -0.73844796, -0.30829725,  0.03736645])
+r 
+Out[35]: 
+array([[-0.28083581,  0.86121057, -0.42361255],
+       [-0.90691298, -0.09369   ,  0.41076882],
+       [ 0.3140702 ,  0.49953832,  0.80735456]])
+env.robots[0].recent_ee_pose.last[3:]
+Out[36]: array([0.73844796, 0.59854084, 0.03736645, 0.30829725])
+r = env.env.viewer.sim.data.cam_xmat[5].reshape(3,3)
+t = env.env.viewer.sim.data.cam_xpos[5]
+pose = make_pose(t,r)
+camera_axis_correction = np.array(
+        [[1.0, 0.0, 0.0, 0.0], [0.0, -1.0, 0.0, 0.0], [0.0, 0.0, -1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
+    )
+R = pose @ camera_axis_correction
+Q = mat2quat(R)
+Q 
+Out[42]: array([-0.5985041 ,  0.7385595 , -0.30813602,  0.03707973], dtype=float32)
+env.robots[0].recent_ee_pose.last[3:]
+Out[43]: array([0.73844796, 0.59854084, 0.03736645, 0.30829725])
+q_unknown = quaternion_multiply_xyzw(np.array([0, 0, 1, 0]), Q)
+q_unknown
+Out[45]: array([-0.73855948, -0.59850413,  0.03707973,  0.30813602])
+q_unknown = quaternion_multiply_xyzw(np.array([0, 0, -1, 0]), Q)
+q_unknown
+Out[47]: array([ 0.73855948,  0.59850413, -0.03707973, -0.30813602])
+Q
+Out[48]: array([-0.5985041 ,  0.7385595 , -0.30813602,  0.03707973], dtype=float32)
+q_unknown
+Out[49]: array([ 0.73855948,  0.59850413, -0.03707973, -0.30813602])
+env.robots[0].recent_ee_pose.last[3:]
+Out[50]: array([0.73844796, 0.59854084, 0.03736645, 0.30829725])
+q_unknown2 = quaternion_multiply_xyzw(np.array([0.7071,0,0,0.7071]), Q)
+q_unknown2 
+Out[52]: array([-0.39698319,  0.74011839,  0.30435243,  0.44942134])
+R 
+Out[53]: 
+array([[-0.28083581, -0.86121057,  0.42361255, -0.11272299],
+       [-0.90691298,  0.09369   , -0.41076882, -0.13176905],
+       [ 0.3140702 , -0.49953832, -0.80735456,  1.12337252],
+       [ 0.        ,  0.        ,  0.        ,  1.        ]])
+q_unknown2 = quaternion_multiply_xyzw(np.array([0,0, -0.7071,0.7071]), Q)
+q_unknown2 
+Out[55]: array([ 0.09903314,  0.94543768, -0.24410205, -0.1916639 ])
+R_z = np.array([
+    [0, 1, 0, 0],
+    [-1, 0, 0, 0],
+    [0, 0, 1, 0],
+    [0, 0, 0, 1]
+])
+R 
+Out[57]: 
+array([[-0.28083581, -0.86121057,  0.42361255, -0.11272299],
+       [-0.90691298,  0.09369   , -0.41076882, -0.13176905],
+       [ 0.3140702 , -0.49953832, -0.80735456,  1.12337252],
+       [ 0.        ,  0.        ,  0.        ,  1.        ]])
+M_rotated = np.dot(R, R_z)
+Q = mat2quat(M_rotated)
+Q 
+Out[60]: array([ 0.9454467 , -0.09903408,  0.24410442,  0.19166575], dtype=float32)
+Q = mat2quat(R)
+Q 
+Out[62]: array([-0.5985041 ,  0.7385595 , -0.30813602,  0.03707973], dtype=float32)
+env.robots[0].recent_ee_pose.last[3:]
+Out[63]: array([0.73844796, 0.59854084, 0.03736645, 0.30829725])
+q_unknown = quaternion_multiply_xyzw(np.array([0, 0, -1, 0]), Q)
+q_unknown
+Out[65]: array([ 0.73855948,  0.59850413, -0.03707973, -0.30813602])
+q_unknown = quaternion_multiply_xyzw(Q, np.array([0, 0, -1, 0]))
+q_unknown
+Out[67]: array([-0.73855948, -0.59850413, -0.03707973, -0.30813602])
+q_unknown = quaternion_multiply_xyzw(Q, np.array([0, 0, 1, 0]))
+q_unknown
+Out[69]: array([0.73855948, 0.59850413, 0.03707973, 0.30813602])
+
+def mat2quat(rmat):
+
+    M = np.asarray(rmat).astype(np.float32)[:3, :3]
+    m00 = M[0, 0]
+    m01 = M[0, 1]
+    m02 = M[0, 2]
+    m10 = M[1, 0]
+    m11 = M[1, 1]
+    m12 = M[1, 2]
+    m20 = M[2, 0]
+    m21 = M[2, 1]
+    m22 = M[2, 2]
+    # symmetric matrix K
+    K = np.array(
+        [
+            [m00 - m11 - m22, np.float32(0.0), np.float32(0.0), np.float32(0.0)],
+            [m01 + m10, m11 - m00 - m22, np.float32(0.0), np.float32(0.0)],
+            [m02 + m20, m12 + m21, m22 - m00 - m11, np.float32(0.0)],
+            [m21 - m12, m02 - m20, m10 - m01, m00 + m11 + m22],
+        ]
+    )
+    K /= 3.0
+    # quaternion is Eigen vector of K that corresponds to largest eigenvalue
+    w, V = np.linalg.eigh(K)
+    inds = np.array([3, 0, 1, 2])
+    q1 = V[inds, np.argmax(w)]
+    if q1[0] < 0.0:
+        np.negative(q1, q1)
+    inds = np.array([1, 2, 3, 0])
+    return q1[inds]
+
+def make_pose(translation, rotation):
+
+    pose = np.zeros((4, 4))
+    pose[:3, :3] = rotation
+    pose[:3, 3] = translation
+    pose[3, 3] = 1.0
+    return pose
+
+r = env.env.viewer.sim.data.cam_xmat[5].reshape(3,3)
+t = env.env.viewer.sim.data.cam_xpos[5]
+pose = make_pose(t,r)
+camera_axis_correction = np.array(
+        [[1.0, 0.0, 0.0, 0.0], [0.0, -1.0, 0.0, 0.0], [0.0, 0.0, -1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
+    )
+R = pose @ camera_axis_correction
+Q = mat2quat(R)
+Q_final = quaternion_multiply_xyzw(Q, np.array([0, 0, 1, 0]))
+
+
+"""
