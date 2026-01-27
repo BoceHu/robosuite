@@ -519,12 +519,6 @@ class MujocoEnv(metaclass=EnvMeta):
         path = os.path.split(robosuite.__file__)[0]
         path_split = path.split("/")
 
-        # replace mesh and texture file paths
-        # if '<camera mode="fixed" name="eye_in_hand" pos="0.05 0 0.0" quat="0 0.707108 0.707108 0" fovy="75"/>' in xml_str:
-        #     xml_str = xml_str.replace(
-        #         '<camera mode="fixed" name="eye_in_hand" pos="0.05 0 0.0" quat="0 0.707108 0.707108 0" fovy="75"/>',
-        #         '<camera mode="fixed" name="eye_in_hand" pos="0.0 0 0.03" quat="0 0.707108 0.707108 0" fovy="160"/>'
-        #     )
 
         tree = ET.fromstring(xml_str)
 
@@ -546,39 +540,6 @@ class MujocoEnv(metaclass=EnvMeta):
 
         return ET.tostring(root, encoding="utf8").decode("utf8")
 
-    # def edit_model_xml(self, xml_str):
-    #     """
-    #     This function edits the model xml with custom changes, including resolving relative paths,
-    #     applying changes retroactively to existing demonstration files, and other custom scripts.
-    #     Environment subclasses should modify this function to add environment-specific xml editing features.
-    #     Args:
-    #         xml_str (str): Mujoco sim demonstration XML file as string
-    #     Returns:
-    #         str: Edited xml file as string
-    #     """
-    #
-    #     path = os.path.split(robosuite.__file__)[0]
-    #     path_split = path.split("/")
-    #
-    #     # replace mesh and texture file paths
-    #     tree = ET.fromstring(xml_str)
-    #     root = tree
-    #     asset = root.find("asset")
-    #     meshes = asset.findall("mesh")
-    #     textures = asset.findall("texture")
-    #     all_elements = meshes + textures
-    #
-    #     for elem in all_elements:
-    #         old_path = elem.get("file")
-    #         if old_path is None:
-    #             continue
-    #         old_path_split = old_path.split("/")
-    #         ind = max(loc for loc, val in enumerate(old_path_split) if val == "robosuite")  # last occurrence index
-    #         new_path_split = path_split + old_path_split[ind + 1 :]
-    #         new_path = "/".join(new_path_split)
-    #         elem.set("file", new_path)
-    #
-    #     return ET.tostring(root, encoding="utf8").decode("utf8")
 
     def reset_from_xml_string(self, xml_string):
         """
